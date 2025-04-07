@@ -3,4 +3,4 @@ oanda.cfg
 __pycache__/
 **/__pycache__/
 logs/
-data/
+stock-data/
