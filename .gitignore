@@ -2,3 +2,5 @@ oanda.cfg
 .idea/
 __pycache__/
 **/__pycache__/
+logs/
+data/
