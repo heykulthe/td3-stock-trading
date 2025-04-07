@@ -1,0 +1,4 @@
+oanda.cfg
+.idea/
+__pycache__/
+**/__pycache__/
