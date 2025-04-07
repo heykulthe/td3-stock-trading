@@ -1,7 +1,13 @@
 import gc
+import glob
 import os
+import time
+
 import pandas as pd
 import logging
+import datetime as dt
+
+from dateutil.relativedelta import relativedelta
 
 from src.data.fetch_data import fetch_stock_data
 
@@ -26,14 +32,24 @@ def _filter_market_hours(data):
 
     return filtered_df
 
+def _remove_chunks(instrument : str, data_dir="stock-data"):
+    pattern = os.path.join(data_dir, f"{instrument}*.csv")
+    for file_path in glob.glob(pattern):
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            logger.error(f"Error deleting chunks: {e}")
+
 
 class PerformDataOperations:
     def __init__(self,
                  instrument : str,
                  start : str,
                  end : str,
-                 granularity : str
+                 granularity : str,
+                 years : int
         ):
+        self.years = years
         self.instrument = instrument
         self.start = start
         self.end = end
@@ -90,4 +106,61 @@ class PerformDataOperations:
         logger.info(f"Saved combined data to path: {data_file}")
 
         return combined_data
+
+    def perform_chunking(self, years=2, granularity="M5"):
+        end_date = dt.datetime.now()
+        start_date = end_date - relativedelta(years=years)
+
+        current_start = start_date
+        chunk_delta = relativedelta(months=3)
+
+        all_chunks = []
+
+        logger.info(f"Fetching {years} years of data in 3-month chunks for instrument: {self.instrument}")
+
+        while current_start < end_date:
+            current_end = min(current_start + chunk_delta, end_date)
+
+            logger.info(f"Fetching chunk: {current_start.date()} to {current_end.date()}")
+
+            try:
+                self.start = current_start.strftime("%Y-%m-%d")
+                self.end = current_end.strftime("%Y-%m-%d")
+                self.granularity = granularity
+
+                chunk_df = self.fetch_historical_data()
+
+                if chunk_df is not None and not chunk_df.empty:
+                    all_chunks.append(chunk_df)
+                    logger.info(f"Finished chunk: {current_start.date()} to {current_end.date()} with {len(chunk_df)} rows")
+                else:
+                    logger.warning(f"Chunk {current_start.date()} to {current_end.date()} returned no data")
+
+                time.sleep(1)
+                del chunk_df
+                gc.collect()
+
+            except Exception as e:
+                logger.error(f"Failed to fetch chunk {current_start.date()} to {current_end.date()}: {e}")
+
+            current_start = current_end
+
+        if all_chunks:
+            final_data = pd.concat(all_chunks)
+            data_file = f"{self.data_dir}/stock_data_{self.instrument}_{start_date.date()}_{end_date.date()}_{granularity}.csv"
+            final_data.to_csv(data_file)
+
+            logger.info(f"Saved full chunked data to path: {data_file}")
+            logger.info(f"Final data shape: {final_data.shape}")
+
+
+            logger.info(f"Removing chunks from {self.data_dir}")
+            _remove_chunks(instrument=self.instrument, data_dir=self.data_dir)
+
+            return final_data
+        else:
+            logger.error("No data fetched across all chunks, returning empty dataframe")
+            return pd.DataFrame()
+
+
 
