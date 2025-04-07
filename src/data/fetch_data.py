@@ -13,7 +13,12 @@ def fetch_stock_data(instrument : str,
     api = tpqoa.tpqoa('oanda.cfg')
     try:
         logger.info(f"Fetching price data of {instrument}")
-        data = api.get_history(instrument=instrument, start=start, end=end, granularity=granularity, price=price)
+        data = api.get_history(instrument=instrument,
+                               start=start,
+                               end=end,
+                               granularity=granularity,
+                               price=price
+        )
         logger.debug(f"data has the type: {type(data)}")
         return data
     except Exception as e:

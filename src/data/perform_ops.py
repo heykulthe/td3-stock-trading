@@ -107,7 +107,8 @@ class PerformDataOperations:
 
         return combined_data
 
-    def perform_chunking(self, years=2, granularity="M5"):
+    def perform_chunking(self, granularity="M5"):
+        years = self.years
         end_date = dt.datetime.now()
         start_date = end_date - relativedelta(years=years)
 
