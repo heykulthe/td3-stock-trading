@@ -160,7 +160,7 @@ def train_td3_for_trading(dataframe,
             episode_timesteps += 1
             total_timesteps += 1
 
-            if total_timesteps < 25000:
+            if total_timesteps < 1000:
                 action = np.random.uniform(-max_action, max_action, size=(action_dim,))
                 logger.debug(f"Episode {episode}, timestep {episode_timesteps}: Random action selected.")
 
@@ -298,7 +298,7 @@ def main():
         start="2023-01-01",
         end="2023-02-01",
         granularity="M5",
-        years=6)
+        years=1)
 
     combined_data = pdo.perform_chunking()
 
