@@ -173,6 +173,18 @@ def train_td3_for_trading(dataframe,
             next_state, reward, done, info = train_env.step(action[0])
             episode_reward += reward
 
+            logger.info(
+                f"Episode Summary:\n"
+                f"  Portfolio Value: {info['portfolio_value']:.2f}\n"
+                f"  Max Portfolio Value: {info['max_portfolio_value']:.2f}\n"
+                f"  Position: {info['position']}\n"
+                f"  Cash: {info['cash']}\n"
+                f"  Transaction Cost: {info['transaction_cost']:.4f}\n"
+                f"  Drawdown: {info['drawdown']:.4f}\n"
+                f"  Price Return: {info['price_return']:.4f}\n"
+                f"  Reward: {info['reward']:.4f}"
+            )
+
             replay_buffer.add(state, action, next_state, reward, done)
 
             state = next_state
@@ -286,7 +298,7 @@ def main():
         start="2023-01-01",
         end="2023-02-01",
         granularity="M5",
-        years=1)
+        years=6)
 
     combined_data = pdo.perform_chunking()
 
@@ -309,18 +321,18 @@ def main():
         dataframe=normalized_df,
         lookback_window=60,
         frame_stack=4,
-        transaction_cost=0.001,
+        transaction_cost=0.0003,
         max_position=1.0,
-        max_episodes=10,
-        max_timesteps=50000,
-        batch_size=256,
-        discount=0.99,
-        tau=0.005,
-        policy_noise=0.2,
-        noise_clip=0.5,
-        policy_freq=2,
-        exploration_noise=0.1,
-        eval_freq=5,
+        max_episodes=100,
+        max_timesteps=150000,
+        batch_size=512,
+        discount=0.995,
+        tau=0.0005,
+        policy_noise=0.15,
+        noise_clip=0.35,
+        policy_freq=4,
+        exploration_noise=0.08,
+        eval_freq=10,
         save_dir='results'
     )
     logger.info("----- Train/Val/Test stage completed -----")

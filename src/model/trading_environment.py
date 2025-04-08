@@ -1,8 +1,12 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
 from collections import deque
 
+logger = logging.getLogger('td3-stock-trading')
 
 class TradingEnvironment:
     def __init__(self,
@@ -31,6 +35,8 @@ class TradingEnvironment:
         self.max_portfolio_value = 1.0
         self.last_action = 0.0
 
+        self.trade_count = 0
+
         self.max_drawdown = 0.0
 
         self.state_buffer = deque(maxlen=frame_stack)
@@ -49,6 +55,8 @@ class TradingEnvironment:
         self.max_portfolio_value = 1.0
         self.last_action = 0.0
         self.max_drawdown = 0.0
+
+        self.trade_count = 0
 
         self.state_buffer = deque(maxlen=self.frame_stack)
         for _ in range(self.frame_stack):
@@ -104,7 +112,11 @@ class TradingEnvironment:
 
         stability_penalty = abs(self.last_action - action) * 0.05
 
-        reward = base_reward - drawdown_penalty - stability_penalty
+        change_penalty = (abs(position_change) ** 1.5) * 0.01
+        trade_penalty = 0.0025 if abs(position_change) > 0.01 else 0.0
+        reversal_penalty = 0.1 if self.last_action * action < -0.5 else 0.0
+
+        reward = base_reward - drawdown_penalty - stability_penalty - change_penalty - trade_penalty - reversal_penalty
 
         self.last_action = action
 
@@ -112,7 +124,9 @@ class TradingEnvironment:
 
         info = {
             'portfolio_value': self.portfolio_value,
+            'max_portfolio_value' : self.max_portfolio_value,
             'position': self.current_position,
+            'cash' : self.cash,
             'transaction_cost': transaction_cost,
             'drawdown': drawdown,
             'price_return': price_return,
