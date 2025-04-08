@@ -5,8 +5,15 @@ import pandas as pd
 import numpy as np
 import logging
 
+from src.data.dr import DimensionReducer
+
 logger = logging.getLogger("td3-stock-trading")
 
+
+def apply_dimension_reduction(data, method='pca', n_components=20):
+    reducer = DimensionReducer(method=method, n_components=n_components)
+    transformed_data = reducer.fit_transform(data)
+    return transformed_data, reducer
 
 class PreprocessData:
     def __init__(self,
@@ -32,8 +39,6 @@ class PreprocessData:
         # df['time'] = pd.to_datetime(df['time'])
         # df.sort_values("time", inplace=True)
         # df.reset_index(drop=True, inplace=True)
-
-        df.drop(['complete_ask', 'complete_bid'])
 
         logger.info(
             "Performing feature engineering (returns / ma5 / ma10 / volatility / momentum / RSI / MACD / Bollinger Bands)")
@@ -86,14 +91,18 @@ class PreprocessData:
         logger.info("Applying Min-Max normalization to numerical features")
 
         features_to_normalize = [
-            'o_bid', 'h_bid', 'l_bid', 'c_bid', 'volume_bid',
-            'o_ask', 'h_ask', 'l_ask', 'c_ask', 'volume_ask',
+            # 'o_bid', 'h_bid', 'l_bid', 'c_bid', 'volume_bid',
+            # 'o_ask', 'h_ask', 'l_ask', 'c_ask', 'volume_ask',
             'open', 'high', 'low', 'close', 'spread',
             'return', 'log_return', 'ma5', 'ma10', 'volatility', 'momentum',
             'macd', 'macd_signal', 'boll_upper', 'boll_lower', 'atr', 'dpo',
             'cumulative_return'
             # Note: we exclude features already in percentage/normalized form like 'rsi', 'natr', 'ma_norm'
         ]
+
+        df.drop(columns=['o_bid', 'h_bid', 'l_bid', 'c_bid', 'volume_bid',
+                         'o_ask', 'h_ask', 'l_ask', 'c_ask', 'volume_ask', 'complete_bid', 'complete_ask'],
+                inplace=True, axis=1)
 
         normalized_df = df.copy()
         for feature in features_to_normalize:
@@ -114,5 +123,7 @@ class PreprocessData:
         logger.info(f"Saved full chunked data to path: {data_file}")
         logger.info(f"Final data shape: {normalized_df.shape}")
         features = normalized_df.columns
+
+        # transformed_data, reducer = apply_dimension_reduction(data=normalized_df, method='pca', n_components=20)
 
         return normalized_df, features
