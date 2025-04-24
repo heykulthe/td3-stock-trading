@@ -33,6 +33,7 @@ def evaluate_policy(policy, eval_env, eval_episodes=3):
     portfolio_values = []
     sharpe_ratios = []
     max_drawdowns = []
+    std_devs = []
 
     for _ in range(eval_episodes):
         state = eval_env.reset()
@@ -43,13 +44,15 @@ def evaluate_policy(policy, eval_env, eval_episodes=3):
             state, _, done, _ = eval_env.step(action[0])
 
         returns = np.array(eval_env.portfolio_history[1:]) / np.array(eval_env.portfolio_history[:-1]) - 1
-        sharpe = np.mean(returns) / (np.std(returns) + 1e-8) * np.sqrt(252)
+        std_return = np.std(returns)
+        sharpe = np.mean(returns) / (std_return + 1e-8) * np.sqrt(19656)
 
         portfolio_values.append(eval_env.portfolio_value)
         sharpe_ratios.append(sharpe)
         max_drawdowns.append(eval_env.max_drawdown)
+        std_devs.append(std_return)
 
-    return np.mean(portfolio_values), np.mean(sharpe_ratios), np.mean(max_drawdowns)
+    return np.mean(portfolio_values), np.mean(sharpe_ratios), np.mean(max_drawdowns), np.mean(std_devs), portfolio_values[-1], sharpe_ratios[-1], max_drawdowns[-1], std_devs[-1]
 
 
 def train_td3_for_trading(dataframe,
@@ -179,7 +182,7 @@ def train_td3_for_trading(dataframe,
                 f"  Max Portfolio Value: {info['max_portfolio_value']:.2f}\n"
                 f"  Position: {info['position']}\n"
                 f"  Cash: {info['cash']}\n"
-                f"  Transaction Cost: {info['transaction_cost']:.4f}\n"
+                # f"  Transaction Cost: {info['transaction_cost']}\n"
                 f"  Drawdown: {info['drawdown']:.4f}\n"
                 f"  Price Return: {info['price_return']:.4f}\n"
                 f"  Reward: {info['reward']:.4f}"
@@ -196,14 +199,16 @@ def train_td3_for_trading(dataframe,
         episode_rewards.append(episode_reward)
 
         if episode % eval_freq == 0:
-            avg_portfolio, avg_sharpe, avg_drawdown = evaluate_policy(policy, val_env)
+            avg_portfolio, avg_sharpe, avg_drawdown, avg_std_dev, last_portfolio_value, last_sharpe_ratio, last_max_drawdown, last_std_dev  = evaluate_policy(policy, val_env)
             val_returns.append(avg_portfolio - 1.0)  # Convert to return
             val_sharpes.append(avg_sharpe)
             val_drawdowns.append(avg_drawdown)
 
             logger.info(f"Episode {episode}/{max_episodes} | Train Reward: {episode_reward:.4f} | "
                   f"Val Return: {(avg_portfolio - 1.0) * 100:.2f}% | Val Sharpe: {avg_sharpe:.4f} | "
-                  f"Val Max DD: {avg_drawdown * 100:.2f}%")
+                  f"Val Max DD: {avg_drawdown * 100:.2f}% | Avg Std Dev: {avg_std_dev} | ")
+
+            logger.info(f"Last Portfolio Values: {last_portfolio_value}% | Last Val Return: {(last_portfolio_value - 1.0) * 100:.2f}% | Last Sharpe Ratio: {last_sharpe_ratio} | Last Max Drawdown: {last_max_drawdown}% | Last Std Dev: {last_std_dev}")
 
             if avg_sharpe > best_val_sharpe:
                 best_val_sharpe = avg_sharpe
