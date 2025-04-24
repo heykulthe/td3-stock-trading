@@ -5,3 +5,4 @@ __pycache__/
 logs/
 stock-data/
 processed-data/
+results/
