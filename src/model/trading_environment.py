@@ -154,7 +154,7 @@ class TradingEnvironment:
             'normalized_reward': normalized_reward,
         }
 
-        return next_observation, normalized_reward, done, info
+        return next_observation, reward, done, info
 
     def render(self, mode='human'):
         plt.figure(figsize=(12, 8))
