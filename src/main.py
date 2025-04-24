@@ -52,10 +52,14 @@ def evaluate_policy(policy, eval_env, eval_episodes=3):
         max_drawdowns.append(eval_env.max_drawdown)
         std_devs.append(std_return)
 
+    logger.info(f"Sizes: Portfolio Values: {len(portfolio_values)} | Sharpe Values: {len(sharpe_ratios)} | Max Drawdowns: {len(max_drawdowns)} | Std Devs: {len(std_devs)}")
+
     return np.mean(portfolio_values), np.mean(sharpe_ratios), np.mean(max_drawdowns), np.mean(std_devs), portfolio_values[-1], sharpe_ratios[-1], max_drawdowns[-1], std_devs[-1]
 
 
-def train_td3_for_trading(dataframe,
+def train_td3_for_trading(train_df,
+                          val_df,
+                          test_df,
                           lookback_window=60,
                           frame_stack=4,
                           transaction_cost=0.001,
@@ -78,18 +82,18 @@ def train_td3_for_trading(dataframe,
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    data = dataframe
+    data = train_df
 
 
     if 'time' in data.columns:
         data['time'] = pd.to_datetime(data['time'])
 
-    train_size = int(0.7 * len(data))
-    val_size = int(0.15 * len(data))
+    # train_size = int(0.7 * len(data))
+    # val_size = int(0.15 * len(data))
 
-    train_data = data.iloc[:train_size].reset_index(drop=True)
-    val_data = data.iloc[train_size:train_size + val_size].reset_index(drop=True)
-    test_data = data.iloc[train_size + val_size:].reset_index(drop=True)
+    train_data = data
+    val_data = val_df
+    test_data = test_df
 
     logger.info(f"Data split - Train: {len(train_data)}, Validation: {len(val_data)}, Test: {len(test_data)}")
 
@@ -177,7 +181,7 @@ def train_td3_for_trading(dataframe,
             episode_reward += reward
 
             logger.info(
-                f"Episode Summary:\n"
+                f"Episode {episode} Summary:\n"
                 f"  Portfolio Value: {info['portfolio_value']:.2f}\n"
                 f"  Max Portfolio Value: {info['max_portfolio_value']:.2f}\n"
                 f"  Position: {info['position']}\n"
@@ -185,7 +189,8 @@ def train_td3_for_trading(dataframe,
                 # f"  Transaction Cost: {info['transaction_cost']}\n"
                 f"  Drawdown: {info['drawdown']:.4f}\n"
                 f"  Price Return: {info['price_return']:.4f}\n"
-                f"  Reward: {info['reward']:.4f}"
+                f"  Reward: {info['reward']:.4f}\n"
+                f"  Normalized Reward: {info['normalized_reward']:.4f}\n"
             )
 
             replay_buffer.add(state, action, next_state, reward, done)
@@ -317,13 +322,15 @@ def main():
         granularity="M5",
     )
 
-    normalized_df, features = ppd.preprocess_data(combined_data=combined_data)
+    train_df, val_df, test_df, features = ppd.preprocess_data(combined_data=combined_data)
 
     logger.info("----- Preprocessing stage completed -----")
 
     logger.info("----- Starting Train/Val/Test stage -----")
     train_td3_for_trading(
-        dataframe=normalized_df,
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
         lookback_window=60,
         frame_stack=4,
         transaction_cost=0.0003,

@@ -104,26 +104,76 @@ class PreprocessData:
                          'o_ask', 'h_ask', 'l_ask', 'c_ask', 'volume_ask', 'complete_bid', 'complete_ask'],
                 inplace=True, axis=1)
 
-        normalized_df = df.copy()
+        total_rows = len(df)
+        train_end = int(0.7 * total_rows)
+        val_end = int(0.85 * total_rows)
+
+        train_df = df.iloc[:train_end]
+        val_df = df.iloc[train_end:val_end]
+        test_df = df.iloc[val_end:]
+
+        # Apply scaling only to the training set
+        min_max_scaler = {}
         for feature in features_to_normalize:
-            min_val = df[feature].min()
-            max_val = df[feature].max()
+            min_val = train_df[feature].min()
+            max_val = train_df[feature].max()
+            min_max_scaler[feature] = (min_val, max_val)
+
             if min_val == max_val:
-                normalized_df[feature] = 0
+                train_df[feature] = 0
             else:
-                normalized_df[feature] = (df[feature] - min_val) / (max_val - min_val)
+                train_df[feature] = (train_df[feature] - min_val) / (max_val - min_val)
+
+        # Apply the same scaling to validation and test sets
+        for feature in features_to_normalize:
+            min_val, max_val = min_max_scaler[feature]
+
+            if min_val == max_val:
+                val_df[feature] = 0
+                test_df[feature] = 0
+            else:
+                val_df[feature] = (val_df[feature] - min_val) / (max_val - min_val)
+                test_df[feature] = (test_df[feature] - min_val) / (max_val - min_val)
+
+        # Fill NaN values with median values
+        train_df = train_df.fillna(train_df.median())
+        val_df = val_df.fillna(val_df.median())
+        test_df = test_df.fillna(test_df.median())
+
+        logger.info(f"Train shape: {train_df.shape}, Val shape: {val_df.shape}, Test shape: {test_df.shape}")
+
+        data_file = f"{self.data_dir}/normalized_{self.instrument}_{self.start}_{self.end}_{self.granularity}"
+        train_df.to_csv(data_file + "_train.csv")
+        val_df.to_csv(data_file + "_val.csv")
+        test_df.to_csv(data_file + "_test.csv")
+
+        logger.info(f"Saved full chunked data to path: {data_file}_train/_val/_test")
+
+        features = train_df.columns
+
+        return train_df, val_df, test_df, features
 
 
-        logger.info(f"Filling NaN values with median values")
-        normalized_df = normalized_df.fillna(normalized_df.median())
-
-        data_file = f"{self.data_dir}/normalized_{self.instrument}_{self.start}_{self.end}_{self.granularity}.csv"
-        normalized_df.to_csv(data_file)
-
-        logger.info(f"Saved full chunked data to path: {data_file}")
-        logger.info(f"Final data shape: {normalized_df.shape}")
-        features = normalized_df.columns
-
-        # transformed_data, reducer = apply_dimension_reduction(data=normalized_df, method='pca', n_components=20)
-
-        return normalized_df, features
+# normalized_df = df.copy()
+# for feature in features_to_normalize:
+#     min_val = df[feature].min()
+#     max_val = df[feature].max()
+#     if min_val == max_val:
+#         normalized_df[feature] = 0
+#     else:
+#         normalized_df[feature] = (df[feature] - min_val) / (max_val - min_val)
+#
+#
+# logger.info(f"Filling NaN values with median values")
+# normalized_df = normalized_df.fillna(normalized_df.median())
+#
+# data_file = f"{self.data_dir}/normalized_{self.instrument}_{self.start}_{self.end}_{self.granularity}.csv"
+# normalized_df.to_csv(data_file)
+#
+# logger.info(f"Saved full chunked data to path: {data_file}")
+# logger.info(f"Final data shape: {normalized_df.shape}")
+# features = normalized_df.columns
+#
+# # transformed_data, reducer = apply_dimension_reduction(data=normalized_df, method='pca', n_components=20)
+#
+# return normalized_df, features

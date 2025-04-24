@@ -35,6 +35,10 @@ class TradingEnvironment:
         self.max_portfolio_value = 1.0
         self.last_action = 0.0
 
+        self.reward_mean = 0.0
+        self.reward_std = 1.0
+        self.reward_alpha = 0.01
+
         self.trade_count = 0
 
         self.max_drawdown = 0.0
@@ -91,7 +95,7 @@ class TradingEnvironment:
 
         self.current_idx += 1
 
-        done = self.current_idx >= self.end_idx
+        done = self.current_idx >= self.end_idx or self.portfolio_value < 0.25
 
         next_price = self.data.iloc[self.current_idx]['close']
 
@@ -109,18 +113,34 @@ class TradingEnvironment:
         base_reward = position_return - transaction_cost
 
         drawdown_penalty = drawdown * drawdown * 2.0
+        # drawdown_penalty = min(drawdown, 0.2) ** 2 * 2.0
 
         stability_penalty = abs(self.last_action - action) * 0.05
 
         change_penalty = (abs(position_change) ** 1.5) * 0.01
-        trade_penalty = 0.0025 if abs(position_change) > 0.01 else 0.0
-        reversal_penalty = 0.1 if self.last_action * action < -0.5 else 0.0
+        # trade_penalty = 0.0025 if abs(position_change) > 0.01 else 0.0
+        trade_penalty = abs(position_change) * 0.001
+        # reversal_penalty = 0.1 if self.last_action * action < -0.5 else 0.0
+        reversal_penalty = abs(self.last_action * action) * 0.1 if self.last_action * action < 0 else 0
 
-        reward = base_reward - drawdown_penalty - stability_penalty - change_penalty - trade_penalty - reversal_penalty
+        reward = (base_reward * 0.4
+                  - drawdown_penalty * 0.2
+                  - change_penalty * 0.1
+                  - stability_penalty * 0.1
+                  - trade_penalty * 0.1
+                  - reversal_penalty * 0.1)
 
         self.last_action = action
 
         next_observation = self._get_observation()
+
+        self.reward_mean = (1 - self.reward_alpha) * self.reward_mean + self.reward_alpha * reward
+        self.reward_std = (1 - self.reward_alpha) * self.reward_std + self.reward_alpha * (
+                    reward - self.reward_mean) ** 2
+
+        normalized_reward = (reward - self.reward_mean) / (np.sqrt(self.reward_std) + 1e-8)
+
+        normalized_reward = np.clip(normalized_reward, -10, 10)
 
         info = {
             'portfolio_value': self.portfolio_value,
@@ -130,10 +150,11 @@ class TradingEnvironment:
             'transaction_cost': transaction_cost,
             'drawdown': drawdown,
             'price_return': price_return,
-            'reward': reward
+            'reward': reward,
+            'normalized_reward': normalized_reward,
         }
 
-        return next_observation, reward, done, info
+        return next_observation, normalized_reward, done, info
 
     def render(self, mode='human'):
         plt.figure(figsize=(12, 8))
