@@ -197,7 +197,7 @@ def train_td3_for_trading(train_df,
 
             state = next_state
 
-            if total_timesteps >= 25000:
+            if total_timesteps >= 50000:
                 policy.train(replay_buffer, batch_size)
                 logger.debug(f"Training policy at timestep {total_timesteps}")
 

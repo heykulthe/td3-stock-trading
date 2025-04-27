@@ -110,6 +110,11 @@ class PerformDataOperations:
     def perform_chunking(self, granularity="M5"):
         years = self.years
         end_date = dt.datetime.now()
+
+        if end_date.weekday() >= 5:
+            days_to_subtract = end_date.weekday() - 4
+            end_date -= dt.timedelta(days=days_to_subtract)
+
         start_date = end_date - relativedelta(years=years)
 
         current_start = start_date

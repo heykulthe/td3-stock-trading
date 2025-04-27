@@ -108,9 +108,9 @@ class PreprocessData:
         train_end = int(0.7 * total_rows)
         val_end = int(0.85 * total_rows)
 
-        train_df = df.iloc[:train_end]
-        val_df = df.iloc[train_end:val_end]
-        test_df = df.iloc[val_end:]
+        train_df = df.iloc[:train_end].copy()
+        val_df = df.iloc[train_end:val_end].copy()
+        test_df = df.iloc[val_end:].copy()
 
         # Apply scaling only to the training set
         min_max_scaler = {}
