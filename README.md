@@ -36,6 +36,26 @@ The trading environment is defined with the following parameters:
 
 The agent's action can range from (-1, 1) where -1 means sell all, 0 means to hold, and 1 means to buy maximum amount possible.
 
+## Reward structure
+
+The main aim of this reward structure is to encourage profitable trading, penalize inefficient behavior, and take timely action during market trends.
+
+| Component                 | Description                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| `performance_reward`     | `np.clip(portfolio_return * 10, 0, 1)` — Rewards growth in portfolio value. |
+| `action_reward`          | `np.clip(expected_profit / old_value * 10, 0, 1)` — Rewards good trades.     |
+| `excessive_cost_penalty`| Penalizes trades where cost > gain.                                          |
+| `drawdown_penalty`       | `np.clip(drawdown * 2, 0, 1)` — Penalizes big losses from peak value.        |
+| `hold_penalty`           | Penalizes inactivity when the market is trending.                           |
+
+**Final Reward**  
+```python
+reward = (performance_reward + action_reward) 
+         - excessive_cost_penalty 
+         - drawdown_penalty 
+         - hold_penalty
+```
+
 ## Evaluation
 The agent is evaluated using the following metrics:
 
@@ -46,10 +66,10 @@ The agent is evaluated using the following metrics:
 
 ## Results so far
 
-Stock used: AAPL
-Granularity: 1D
-Start = 2018-01-01
-End = 2023-12-31
+- Stock used: AAPL
+- Granularity: 1D
+- Start = 2018-01-01
+- End = 2023-12-31
 
 |       Metric        |        Value         |
 |---------------------|----------------------|
